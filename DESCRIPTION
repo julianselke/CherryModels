@@ -19,7 +19,7 @@ Depends:
     furrr,
     lmerTest,
     magrittr,
-    psych
+    psych,
     rje,
     shiny,
     shinyBS,
