@@ -70,7 +70,7 @@ x <- cherry_models(model_data = mpg,
                    fixed_no_inter = c("trans", "drv"),
                    max_comb = 3,
                    comb_comb = 2,
-                   random = c("(1|manufacturer/model)"),
+                   random = c("(1 | manufacturer / model)"),
                    n.workers = 2,
                    dry = FALSE,
                    background = FALSE)
@@ -107,7 +107,7 @@ if (FALSE) {
                         fixed_no_inter = c("trans", "drv"),
                         max_comb = 3,
                         comb_comb = 2,
-                        random = c("(1|manufacturer/model)"),
+                        random = c("(1 | manufacturer/model)"),
                         n.workers = 2,
                         dry = FALSE,
                         background = TRUE)
@@ -173,7 +173,7 @@ First it is loading packages...
 
 <hr>
 
-To inspect the results we can call `show_report()` which will start a *shiny* app.
+To inspect the results we can call `show_report()` which will start a *shiny* app. In the app click the button with the <b>i</b> icon in the top right corner for further explanation.
 
 ```{r}
 if (FALSE) show_report(x)
