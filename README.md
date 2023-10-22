@@ -6,7 +6,7 @@ Installation & introduction:
 
 ```
 library(devtools)
-install_github("julianselke/CherryModels")
+install_github("julianselke/CherryModels", build_vignettes = TRUE)
 
 vignette("CherryModels")
 ```
