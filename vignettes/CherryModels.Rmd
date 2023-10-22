@@ -1,0 +1,185 @@
+---
+title: "&#127826;CherryModels"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{CherryModels}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<hr>
+
+The <b>CherryModels</b> package facilitates computing thousands of linear mixed-effects models to determine the model that best explains your data. To this end, all combinations of fixed effects with and without interaction are generated and computed with `lmerTest::lmer()`. Subsequently, a step-wise model reduction is performed on every model with `lmerTest::step()`.  
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, message=FALSE, warning=FALSE}
+library(CherryModels)
+```
+
+We use the `mpg` data set provided in the `ggplot2` package for demonstration.
+```{r}
+glimpse(mpg)
+```
+
+This tibble is our *model_data* and will be passed to `lmer`. Besides the data, this function also needs a formula: <br> 
+`response ~ fixed + random`
+
+- The *response* is the dependent variable. Although a transformation inside the model formula is possible, e.g. `response = "log(my_var)"`, it is not recommended since it may cause problems in the `show_report()` function.
+
+- Fixed effects (independent variables) that are to be investigated for interaction effects are passed to the argument *fixed_inter*. 
+
+- The maximum number of these effects that should be considered for interaction is specified in *max_comb*. As an example, let `c("A", "B", "C", "D")` be the fixed effects. If *max_comb* is set to `2`, then the interaction effects generated are `A:B`, ..., `C:D`. 
+
+- The argument *comb_comb* specifies the maximum number of interaction terms in the same manner, e.g. `comb_comb = 2` means `A:B + A:C`, ..., `B:D + C:D`.
+
+- Fixed effects that should be included without interaction can be supplied to *fixed_no_inter*.
+
+- The random effects are supplied to *random* (please be aware of the notation required by `lmer`).
+
+A <i><b>dry</b></i> run can be used to display the generated formulas without computing the models.
+
+```{r}
+formulas <- cherry_models(model_data = mpg,
+                          response = "cty",
+                          fixed_inter = c("displ", "year", "cyl"),
+                          fixed_no_inter = c("trans", "drv"),
+                          max_comb = 3,
+                          comb_comb = 2,
+                          random = c("(1|manufacturer/model)"),
+                          n.workers = 2,
+                          dry = TRUE,
+                          background = FALSE)
+
+head(formulas)
+```
+
+By default the computation is run in parallel with two threads and can be specified with the *n.workers* argument. If the number of cores of the processor is unknown the function `parallel::detectCores()` can be run (you may need to install the **parallel** package).
+
+Let's run the model:
+
+```{r, warning=FALSE, message=FALSE}
+x <- cherry_models(model_data = mpg,
+                   response = "cty",
+                   fixed_inter = c("displ", "year", "cyl"),
+                   fixed_no_inter = c("trans", "drv"),
+                   max_comb = 3,
+                   comb_comb = 2,
+                   random = c("(1|manufacturer/model)"),
+                   n.workers = 2,
+                   dry = FALSE,
+                   background = FALSE)
+```
+
+The call will print the number of formulas it is computing and subsequently the process of the computation.
+
+The returned data.frame has one row per model containing the extracted values of the initial (before `step()`) and the final model (after `step()`).
+
+```{r, warning=FALSE, message=FALSE}
+glimpse(x)
+```
+
+*Reduced* shows the ratio of effects dropped during model reduction to initial number of fixed effects included. *Fixed* shows the fixed effects retained in the final model.
+
+Additionally, metadata are saved in the attributes. These include the values passed to the arguments.
+
+```{r, warning=FALSE, message=FALSE}
+attributes(x)
+```
+
+<hr>
+
+Despite parallelization, computation can take some time. To avoid having your session being busy for hours, you can run the computation as a background job (see package `callr` for details) by setting *background* to `TRUE`. In this case the function returns a so-called *handler*, i.e. a connection to another R session running the computation in the background. To communicate with this session you can use `get_process_result()` on the object. This will print the latest messages output by the background process. Once the the process is finished, this function returns the result of the computation.
+
+```{r, warning=FALSE, message=FALSE}
+#> I don't want this code chunk to be run during the generation of this document, hence the 
+#> if (FALSE) {...} statement, but you are safe to copy-paste it into your console and run it.
+if (FALSE) { 
+
+  proc <- cherry_models(model_data = mpg,
+                        response = "cty",
+                        fixed_inter = c("displ", "year", "cyl"),
+                        fixed_no_inter = c("trans", "drv"),
+                        max_comb = 3,
+                        comb_comb = 2,
+                        random = c("(1|manufacturer/model)"),
+                        n.workers = 2,
+                        dry = FALSE,
+                        background = TRUE)
+  
+  x <- get_process_results(proc)
+
+}
+```
+
+When starting the call:
+
+```{r}
+#> Starting r_process in background and returning handler
+```
+
+Calling the object (here `proc`) shows some more information:
+
+```{r}
+#> proc
+#> PROCESS 'R', running, pid 91556.
+```
+
+When the computation is finished:
+
+```{r}
+#> proc
+#> PROCESS 'R', finished.
+```
+
+While the process is not finished, we get information on what is happening by calling `get_process_result()`.
+
+First it is loading packages...
+
+```{r}
+#> x <- get_process_results(proc)
+#> busy:
+#> Loading required package: Matrix
+```
+
+...then the model formulas are generated...
+
+```{r}
+#> x <- get_process_results(proc)
+#> busy:
+#> generating 63 models
+```
+
+...subsequently the models are computed and the progress is reported...
+
+```{r}
+#> x <- get_process_results(proc)
+#> busy:
+#>  Progress: ───────────────────────────                                      100%
+```
+
+...and finally the process is finished. The object `x` now contains the data.frame containing the results and the object we passed to the function, i.e. the handler, is removed from the global environment.
+
+```{r}
+#> x <- get_process_results(proc)
+#> finished
+#> removing proc
+```
+
+<hr>
+
+To inspect the results we can call `show_report()` which will start a *shiny* app.
+
+```{r}
+if (FALSE) show_report(x)
+```
+
+<hr>
+<br>
+<br>
+<br>
